@@ -64,12 +64,35 @@ jobs:
           git tag "v$VERSION"
           git push origin "v$VERSION"
 
+      # Start from a draft: electron-builder uploads every file into an existing draft, whereas
+      # with no release it can race and create duplicates (one per parallel upload). The draft
+      # also keeps installed copies from seeing the release before all files are there.
+      - name: Create a draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release v$VERSION already exists; uploading into it."
+          else
+            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+              --title "Arcade Player $VERSION" --generate-notes
+          fi
+
       - run: npm ci
 
       # The app's version comes from package.json; set it from the tag for this build only.
       - run: npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
 
-      - name: Build and publish
+      - name: Build and upload
         run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'
+          gh release edit "v$VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --latest
