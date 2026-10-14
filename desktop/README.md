@@ -57,7 +57,7 @@ Local games compile in MakeCode's runner like any other game. The runner itself 
 - **GitHub:** Actions → **Release** → **Run workflow**, then enter a version such as `0.2.0`. It must be higher than the last release.
 - **Command line:** `git tag v0.2.0 && git push origin v0.2.0`
 
-The workflow builds the installer on Windows and publishes a release containing `Arcade-Player-Setup-<version>.exe`, its `.blockmap`, and `latest.yml`, which is what the updater reads. The version in `package.json` is set from the tag for that build only; you don't need to edit it.
+The workflow builds the installer on Windows and uploads `Arcade-Player-Setup-<version>.exe`, its `.blockmap`, and `latest.yml` (what the updater reads) into a draft release. It publishes the release only once every file is in, with notes generated from the commits. Installed copies therefore never see a half-uploaded release. The version in `package.json` is set from the tag for that build only; you don't need to edit it.
 
 The updater can only see releases if the repository is **public**.
 
