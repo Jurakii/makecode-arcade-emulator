@@ -1,0 +1,267 @@
+<title>Arcade Desktop Emulator</title>
+<style>
+/* Player-style layout: a black stage with the screen centered and a quiet status strip that hides while playing. */
+:root {
+  --bg: #000;
+  --fg: #d9dee8;
+  --muted: #6b7487;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 12px/1.4 var(--font);
+  overflow: hidden;
+}
+.stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+canvas {
+  display: block;
+  width: min(100vw, calc(100vh * 4 / 3));
+  height: auto;
+  aspect-ratio: 4 / 3;
+  image-rendering: pixelated;
+}
+.hud {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 10px 16px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+  color: var(--muted);
+  transition: opacity 0.3s;
+}
+.hud[data-idle="true"] { opacity: 0; }
+.hud[data-idle="true"]:hover { opacity: 1; }
+.hud span { min-width: 0; overflow-wrap: anywhere; }
+.hud .help { flex-basis: 100%; color: var(--fg); }
+.hud .help[hidden] { display: none; }
+kbd {
+  font: inherit;
+  font-family: ui-monospace, Consolas, monospace;
+  color: var(--fg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud { transition: none; }
+}
+</style>
+
+<div class="stage">
+  <canvas id="screen" width="160" height="120" aria-label="Game screen"></canvas>
+</div>
+
+<div class="hud" id="hud" data-idle="false">
+  <span id="state">Playing</span>
+  <span id="input">Keyboard</span>
+  <span class="help" id="help" hidden>
+    Move <kbd>arrows</kbd> <kbd>WASD</kbd> or stick &middot;
+    Pause <kbd>Space</kbd> <kbd>P</kbd> or Start &middot;
+    Reset <kbd>R</kbd> or Select &middot;
+    Fullscreen <kbd>F</kbd> &middot;
+    Help <kbd>?</kbd>
+  </span>
+</div>
+
+<script>
+(function () {
+  // Screen and rules match the sample project's main.ts.
+  var W = 160, H = 120;
+  var SPRITE = 16;
+  var SPEED = 100;      // px per second, controller.moveSprite default
+  var BG = 9;           // scene.setBackgroundColor(9)
+
+  // Palette from the editor's own runtime (pxtTargetBundle.palette).
+  var PALETTE = [
+    "#000000", "#ffffff", "#ff2121", "#ff93c4", "#ff8135", "#fff609", "#249ca3", "#78dc52",
+    "#003fad", "#87f2ff", "#8e2ec4", "#a4839f", "#5c406c", "#e5cdc4", "#91463d", "#000000"
+  ];
+
+  // Real sprite from img`...` in main.ts. "." is transparent; hex digits are palette indices.
+  var SPRITE_ROWS = [
+    "................",
+    "................",
+    ".........b55b...",
+    "......bbbbbb....",
+    ".....bb55555b...",
+    ".bbbbb5555555b..",
+    ".bd5b55555555b..",
+    "..b55b5d1f5d4f..",
+    "..bd55b1ff544c..",
+    "bbdb555dfb4444b.",
+    "bddcd55b5444444b",
+    "cdddccb5555555b.",
+    "cbddddd5555555b.",
+    ".cdddddd55555db.",
+    "..cbddddd555bb..",
+    "...ccccccccbb..."
+  ];
+
+  var canvas = document.getElementById("screen");
+  var ctx = canvas.getContext("2d");
+  var hud = document.getElementById("hud");
+  var stateEl = document.getElementById("state");
+  var inputEl = document.getElementById("input");
+  var helpEl = document.getElementById("help");
+
+  var player, paused = false, helpOn = false, idleTimer = null;
+  function reset() { player = { x: W / 2 - SPRITE / 2, y: H / 2 - SPRITE / 2 }; }
+  reset();
+
+  var keys = {};
+  var pad = { up: false, down: false, left: false, right: false };
+  var padPrev = { start: false, select: false };
+  var padName = null;
+
+  // Keyboard map. Pause, reset, fullscreen and help are edge-triggered.
+  var MOVE = {
+    ArrowUp: "up", KeyW: "up", ArrowDown: "down", KeyS: "down",
+    ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right"
+  };
+
+  function held(name) { return !!(keys[name] || pad[name]); }
+
+  function wake() {
+    hud.dataset.idle = "false";
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () {
+      if (!paused && !helpOn) hud.dataset.idle = "true";
+    }, 2500);
+  }
+
+  function togglePause() { paused = !paused; wake(); }
+  function toggleHelp() { helpOn = !helpOn; helpEl.hidden = !helpOn; wake(); }
+  function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    } catch (err) { /* fullscreen refused: keep the window as is */ }
+  }
+
+  window.addEventListener("keydown", function (e) {
+    wake();
+    if (MOVE[e.code]) { keys[MOVE[e.code]] = true; e.preventDefault(); return; }
+    if (e.repeat) return;
+    if (e.code === "Space" || e.code === "KeyP") { e.preventDefault(); togglePause(); }
+    else if (e.code === "KeyR") reset();
+    else if (e.code === "KeyF") toggleFullscreen();
+    else if (e.key === "?") toggleHelp();
+  });
+  window.addEventListener("keyup", function (e) {
+    if (MOVE[e.code]) keys[MOVE[e.code]] = false;
+  });
+  window.addEventListener("blur", function () { keys = {}; });
+  window.addEventListener("pointermove", wake);
+
+  // Standard gamepad mapping. Start pauses, Select resets.
+  var DEADZONE = 0.4;
+  function readPad() {
+    var gps = navigator.getGamepads ? navigator.getGamepads() : [];
+    var gp = null;
+    for (var i = 0; i < gps.length; i++) { if (gps[i]) { gp = gps[i]; break; } }
+    if (!gp) {
+      pad.up = pad.down = pad.left = pad.right = false;
+      padPrev.start = padPrev.select = false;
+      return;
+    }
+    var btn = function (n) { return !!(gp.buttons[n] && gp.buttons[n].pressed); };
+    var ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+    pad.up = btn(12) || ay < -DEADZONE;
+    pad.down = btn(13) || ay > DEADZONE;
+    pad.left = btn(14) || ax < -DEADZONE;
+    pad.right = btn(15) || ax > DEADZONE;
+
+    var start = btn(9), select = btn(8);
+    if (start && !padPrev.start) togglePause();
+    if (select && !padPrev.select) reset();
+    padPrev.start = start;
+    padPrev.select = select;
+  }
+
+  window.addEventListener("gamepadconnected", function (e) {
+    padName = e.gamepad.id;
+    refreshInput();
+  });
+  window.addEventListener("gamepaddisconnected", function () {
+    padName = null;
+    refreshInput();
+  });
+  function refreshInput() {
+    var label = "Keyboard";
+    if (padName) {
+      var short = padName.length > 40 ? padName.slice(0, 40) + "..." : padName;
+      label += " + " + short;
+    }
+    inputEl.textContent = label;
+  }
+
+  function update(dt) {
+    if (paused) return;
+    var dx = (held("right") ? 1 : 0) - (held("left") ? 1 : 0);
+    var dy = (held("down") ? 1 : 0) - (held("up") ? 1 : 0);
+    if (dx !== 0 && dy !== 0) { dx *= Math.SQRT1_2; dy *= Math.SQRT1_2; }
+    player.x += dx * SPEED * dt;
+    player.y += dy * SPEED * dt;
+    // setStayInScreen(true)
+    player.x = Math.max(0, Math.min(W - SPRITE, player.x));
+    player.y = Math.max(0, Math.min(H - SPRITE, player.y));
+  }
+
+  function drawSprite() {
+    var px = Math.round(player.x), py = Math.round(player.y);
+    for (var row = 0; row < SPRITE_ROWS.length; row++) {
+      var line = SPRITE_ROWS[row];
+      for (var col = 0; col < line.length; col++) {
+        var ch = line.charAt(col);
+        if (ch === ".") continue;
+        ctx.fillStyle = PALETTE[parseInt(ch, 16)];
+        ctx.fillRect(px + col, py + row, 1, 1);
+      }
+    }
+  }
+
+  function draw() {
+    ctx.fillStyle = PALETTE[BG];
+    ctx.fillRect(0, 0, W, H);
+    drawSprite();
+    if (paused) {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = PALETTE[1];
+      ctx.font = "bold 12px ui-monospace, Consolas, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("PAUSED", W / 2, H / 2);
+    }
+  }
+
+  function syncState() { stateEl.textContent = paused ? "Paused" : "Playing"; }
+
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    readPad();
+    update(dt);
+    syncState();
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  refreshInput();
+  wake();
+  requestAnimationFrame(function (t) { last = t; frame(t); });
+})();
+</script>
