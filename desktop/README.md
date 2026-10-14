@@ -2,7 +2,13 @@
 
 A desktop app that plays MakeCode Arcade games full screen, works offline after a game's first load, and takes input from USB arcade controls.
 
-## Run it
+## Install
+
+Download `Arcade-Player-Setup-<version>.exe` from the repository's [Releases](https://github.com/Jurakii/makecode-arcade-emulator/releases) page and run it. It installs for the current user, and no admin rights are needed. The installer isn't code-signed, so Windows SmartScreen may warn you: click **More info** → **Run anyway**.
+
+The installed app keeps itself up to date (see [Updates and releases](#updates-and-releases)).
+
+## Run from source
 
 Needs Node.js. Electron installs on first run.
 
@@ -42,6 +48,27 @@ Every time you play a local game, its file is read again, so edits show up on th
 
 Local games compile in MakeCode's runner like any other game. The runner itself has to have been downloaded once, which happens the first time you play or add any game online.
 
+## Updates and releases
+
+**Updates.** The installed app checks GitHub Releases 5 seconds after it starts, then every 6 hours. A new version downloads in the background; only the changed parts are fetched. The library header shows the version, the download progress, and then a **Restart to update** button. If you don't press it, the update installs the next time the app closes, so a cabinet updates on its next restart. Offline, the check fails quietly and is tried again later. Copies run from source (`npm start`) don't update themselves.
+
+**Making a release.** Use the **Release** workflow (`.github/workflows/release.yml`):
+
+- **GitHub:** Actions → **Release** → **Run workflow**, then enter a version such as `0.2.0`. It must be higher than the last release.
+- **Command line:** `git tag v0.2.0 && git push origin v0.2.0`
+
+The workflow builds the installer on Windows and publishes a release containing `Arcade-Player-Setup-<version>.exe`, its `.blockmap`, and `latest.yml`, which is what the updater reads. The version in `package.json` is set from the tag for that build only; you don't need to edit it.
+
+The updater can only see releases if the repository is **public**.
+
+**Testing an update without publishing.** Build a newer version into a folder, serve that folder over HTTP, and point an installed or packaged build at it:
+
+```bash
+npx electron-builder --win --publish never -c.extraMetadata.version=0.1.1 -c.directories.output=feed
+```
+
+Then run the app with `ARCADE_UPDATE_URL=http://127.0.0.1:8765/` set.
+
 ## How it works
 
 - **Games run in the official MakeCode simulator**, loaded from `arcade.makecode.com/---run?id=…`. That gives full compatibility, extensions included, with no compiler of our own. The page is restyled so only the game screen shows, scaled to the window.
@@ -58,6 +85,8 @@ Local games compile in MakeCode's runner like any other game. The runner itself 
 | `main.js` | Window, offline cache hookup, game library, injecting into the simulator frame |
 | `cache.js` | Disk cache for MakeCode requests |
 | `local-project.js` | Reads local projects: folder, zip, png, uf2/elf/hex, mkcd, ts |
+| `updater.js` | Auto-update from GitHub Releases (electron-updater) |
+| `package.json` → `build` | Installer and publish settings (electron-builder) |
 | `preload.js` | API the shell page can call |
 | `shell/input.js` | Keyboard and controller mapping, hat decoding, Learn detection |
 | `shell/app.js` | Library, in-game input loop, controls screen |
@@ -81,12 +110,19 @@ Tested with the sample game (`_DLxgpzWtWgkc`) on Windows 10:
   - a `.png` made by MakeCode's own encoder (`pxt.Util.encodeBlobAsync`);
   - a `.uf2` and a `.hex` built to pxt's source-embedding layout.
 - **Editing a local project.** After an edit, the next play shows the change, including in `--offline` mode.
+- **Installer build and update.** `npm run dist` built an installer with `latest.yml`. A packaged v0.1.0 pointed at a local feed holding v0.1.1:
+  - found the update;
+  - downloaded it using the blockmap, so only changed parts were fetched;
+  - showed **Restart to update**.
+
+  The install step was not run, to avoid installing a test build on this PC.
 
 **Not yet tested:**
 
 - **Physical USB controllers.** This is the main open question. Real devices could behave differently from the simulated one.
 - **Games that use A/B, multiple players, or extensions.** The sample game only uses movement.
 - **A `.uf2` downloaded from the editor for real hardware.** MakeCode's `---run?hex=1` mode is broken upstream (`options is not defined`), so the test file was built from pxt's writer code instead.
+- **The Release workflow on GitHub,** and updating from a real GitHub release.
 - **"Open folder…" by hand.** The native dialog can't be automated here. Folders added through the drop path were tested.
 
 ## Known limits

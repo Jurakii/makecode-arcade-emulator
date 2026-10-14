@@ -19,6 +19,10 @@ contextBridge.exposeInMainWorld("player", {
   setButton: (key, pressed) => ipcRenderer.send("game:button", key, pressed),
   quit: () => ipcRenderer.send("app:quit"),
 
+  getUpdate: () => ipcRenderer.invoke("update:get"),
+  installUpdate: () => ipcRenderer.invoke("update:install"),
+  onUpdate: fn => ipcRenderer.on("update:status", (_e, state) => fn(state)),
+
   onKey: fn => ipcRenderer.on("input:key", (_e, code, down) => fn(code, down)),
   onClearInput: fn => ipcRenderer.on("input:clear", () => fn()),
   onLibraryChanged: fn => ipcRenderer.on("library:changed", () => fn())

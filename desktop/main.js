@@ -10,6 +10,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { RequestCache } = require("./cache");
 const { readLocalProject, ProjectError } = require("./local-project");
+const { initUpdater, updateState, installUpdate } = require("./updater");
 
 const ARCADE = "https://arcade.makecode.com";
 const OFFLINE = process.argv.includes("--offline");   // cache only, for testing offline play
@@ -18,7 +19,11 @@ const KIOSK = process.argv.includes("--kiosk");
 // Sound must start without a click on a cabinet.
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 // Library, controls and offline cache live here. Override for a portable install (e.g. a USB stick).
-if (process.env.ARCADE_PLAYER_DATA) app.setPath("userData", path.resolve(process.env.ARCADE_PLAYER_DATA));
+// Fixed name rather than Electron's default (the product name), so installed builds and
+// `npm start` share one library and a rename never orphans it.
+app.setPath("userData", process.env.ARCADE_PLAYER_DATA
+  ? path.resolve(process.env.ARCADE_PLAYER_DATA)
+  : path.join(app.getPath("appData"), "arcade-desktop-player"));
 
 let win = null;
 let cache = null;
@@ -391,7 +396,9 @@ ipcMain.handle("library:remove", (_e, id) => { removeGame(id); return true; });
 ipcMain.handle("library:warm", (_e, id) => { warmCache(id); return true; });
 ipcMain.handle("controls:get", () => readJson("controls.json", null));
 ipcMain.handle("controls:set", (_e, value) => { writeJson("controls.json", value); return true; });
-ipcMain.handle("app:info", () => ({ offline: OFFLINE, kiosk: KIOSK, dataDir }));
+ipcMain.handle("app:info", () => ({ offline: OFFLINE, kiosk: KIOSK, dataDir, version: app.getVersion() }));
+ipcMain.handle("update:get", () => updateState());
+ipcMain.handle("update:install", () => installUpdate());
 
 ipcMain.handle("game:start", async (_e, id) => {
   let url;
@@ -413,6 +420,7 @@ app.whenReady().then(() => {
   session.defaultSession.protocol.handle("https", req => handleLocalApi(req) || cache.handle(req));
   Menu.setApplicationMenu(null);
   createWindow();
+  initUpdater({ offline: OFFLINE, onChange: state => send("update:status", state) });
 });
 
 app.on("window-all-closed", () => app.quit());
