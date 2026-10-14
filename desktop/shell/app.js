@@ -67,6 +67,10 @@
     $("learn-clear").addEventListener("click", () => { clearBinding(); advanceLearn(); });
     $("learn-cancel").addEventListener("click", () => finishLearn());
 
+    $("update-button").addEventListener("click", () => window.player.installUpdate());
+    window.player.onUpdate(showUpdate);
+    showUpdate(await window.player.getUpdate());
+
     updateNetStatus();
     await refreshLibrary();
     focusGame(0);
@@ -96,6 +100,19 @@
     if (info.offline) { el.textContent = "Offline mode: saved games only"; el.className = "pill offline"; }
     else if (navigator.onLine) { el.textContent = "Online"; el.className = "pill online"; }
     else { el.textContent = "Offline: saved games only"; el.className = "pill offline"; }
+  }
+
+  // Version pill, download progress, and the restart button once an update is ready.
+  // (A ready update also installs by itself the next time the app is closed.)
+  function showUpdate(u) {
+    const pill = $("update-status");
+    const button = $("update-button");
+    button.hidden = u.status !== "ready";
+    if (u.status === "downloading") pill.textContent = `Downloading v${u.newVersion}… ${u.percent || 0}%`;
+    else if (u.status === "ready") pill.textContent = `v${u.newVersion} ready`;
+    else pill.textContent = `v${u.version}`;
+    if (u.status === "ready") button.textContent = `Restart to update`;
+    pill.title = u.status === "error" ? `Update check failed: ${u.error}` : "";
   }
 
   function tick(now) {

@@ -1,18 +1,64 @@
 {
   "name": "arcade-desktop-player",
+  "productName": "Arcade Player",
   "version": "0.1.0",
   "description": "Offline desktop player for MakeCode Arcade games with USB arcade controller support",
+  "author": "Jurakii",
+  "homepage": "https://github.com/Jurakii/makecode-arcade-emulator",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
     "start:kiosk": "electron . --kiosk",
-    "start:offline": "electron . --offline"
+    "start:offline": "electron . --offline",
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
+  },
+  "build": {
+    "appId": "io.github.jurakii.arcadeplayer",
+    "productName": "Arcade Player",
+    "files": [
+      "main.js",
+      "preload.js",
+      "cache.js",
+      "local-project.js",
+      "updater.js",
+      "shell/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "Arcade-Player-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Jurakii",
+        "repo": "makecode-arcade-emulator",
+        "releaseType": "release"
+      }
+    ]
   },
   "devDependencies": {
-    "electron": "^44.7.1"
+    "electron": "^44.7.1",
+    "electron-builder": "^26.15.3"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "lzma": "^2.3.2"
   }
 }
