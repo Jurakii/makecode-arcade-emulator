@@ -32,6 +32,7 @@ function initUpdater({ onChange, offline }) {
     autoUpdater.forceDevUpdateConfig = true;
     autoUpdater.setFeedURL({ provider: "generic", url: testFeed });
   }
+  autoUpdater.disableWebInstaller = true; // releases ship the full NSIS installer
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.logger = { info: m => console.log("[updater]", m), warn: m => console.warn("[updater]", m), error: m => console.error("[updater]", m), debug: () => {} };

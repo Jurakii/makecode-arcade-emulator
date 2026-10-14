@@ -116,13 +116,13 @@ Tested with the sample game (`_DLxgpzWtWgkc`) on Windows 10:
   - showed **Restart to update**.
 
   The install step was not run, to avoid installing a test build on this PC.
+- **Release workflow on GitHub.** The v0.1.1 run produced one published release with the installer, its `.blockmap`, and `latest.yml`. A packaged v0.1.0 then found 0.1.1 on GitHub, downloaded it, and showed **Restart to update**. Here it downloaded the full installer, because the v0.1.0 release and its blockmap had been deleted.
 
 **Not yet tested:**
 
 - **Physical USB controllers.** This is the main open question. Real devices could behave differently from the simulated one.
 - **Games that use A/B, multiple players, or extensions.** The sample game only uses movement.
 - **A `.uf2` downloaded from the editor for real hardware.** MakeCode's `---run?hex=1` mode is broken upstream (`options is not defined`), so the test file was built from pxt's writer code instead.
-- **The Release workflow on GitHub,** and updating from a real GitHub release.
 - **"Open folder…" by hand.** The native dialog can't be automated here. Folders added through the drop path were tested.
 
 ## Known limits
