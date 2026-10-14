@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://arcade.makecode.com data:; frame-src https://arcade.makecode.com">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arcade Player</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<main id="library-view" class="view">
+  <header class="bar">
+    <h1>Arcade Player</h1>
+    <span id="net-status" class="pill"></span>
+    <div class="bar-actions">
+      <button id="open-controls" type="button">Controls</button>
+      <button id="quit" type="button">Quit</button>
+    </div>
+  </header>
+
+  <form id="add-form" class="add">
+    <label class="sr-only" for="add-input">Share link or game id</label>
+    <input id="add-input" placeholder="Paste a MakeCode Arcade share link, e.g. https://makecode.com/_DLxgpzWtWgkc"
+      autocomplete="off" spellcheck="false">
+    <button id="add-button" type="submit">Add game</button>
+  </form>
+  <div class="local-row">
+    <span>Or add a project from this computer:</span>
+    <button id="open-file" type="button">Open file…</button>
+    <button id="open-folder" type="button">Open folder…</button>
+    <span class="local-hint">You can also drop a .png, .uf2, .zip, .ts file or a project folder onto this window.</span>
+  </div>
+  <p id="add-msg" class="msg" role="status"></p>
+
+  <ul id="games" class="games"></ul>
+  <p id="empty" class="empty" hidden>No games yet. Paste a share link above to add one.</p>
+
+  <footer class="hint">
+    Pick a game with the stick or arrow keys, then press <b>A</b> or <kbd>Enter</kbd>.
+    In a game, hold <b>Menu + B</b> or press <kbd>Esc</kbd> to come back here. <kbd>F11</kbd> toggles full screen.
+  </footer>
+</main>
+
+<div id="drop-overlay" class="drop-overlay" hidden><p>Drop to add this project</p></div>
+
+<section id="game-view" class="view game-view" hidden>
+  <iframe id="game-frame" title="Game" allow="autoplay; gamepad" tabindex="-1"></iframe>
+  <div id="game-overlay" class="overlay">
+    <p id="overlay-title" class="overlay-title">Loading…</p>
+    <p id="overlay-sub" class="overlay-sub"></p>
+  </div>
+  <div id="exit-meter" class="exit-meter" hidden><span></span></div>
+</section>
+
+<section id="controls-view" class="view" hidden>
+  <header class="bar">
+    <h1>Controls</h1>
+    <div class="bar-actions">
+      <button id="reset-controls" type="button">Reset to defaults</button>
+      <button id="close-controls" type="button" class="primary">Done</button>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" id="player-tabs"></div>
+
+  <div class="player-head">
+    <label for="pad-select">Controller</label>
+    <select id="pad-select"></select>
+    <button id="learn-all" type="button" class="primary">Learn all buttons</button>
+  </div>
+
+  <table class="bindings">
+    <thead><tr><th>Button</th><th>Keyboard</th><th>Controller</th><th class="live-col">Live</th><th></th></tr></thead>
+    <tbody id="player-rows"></tbody>
+  </table>
+
+  <h2>System</h2>
+  <table class="bindings">
+    <thead><tr><th>Action</th><th>Keyboard</th><th>Controller (player 1's)</th><th class="live-col">Live</th><th></th></tr></thead>
+    <tbody id="system-rows"></tbody>
+  </table>
+  <p class="note">Holding <b>Menu + B</b> on player 1 for 1.5 seconds also quits a game, so a cabinet doesn't need a keyboard.</p>
+
+  <h2>Connected controllers</h2>
+  <p class="note">Press anything on a controller to wake it up. Lit numbers are buttons being pressed right now.</p>
+  <div id="pad-monitor" class="pad-monitor"></div>
+</section>
+
+<div id="learn" class="learn" hidden role="dialog" aria-modal="true" aria-labelledby="learn-prompt">
+  <div class="learn-box">
+    <p id="learn-player" class="learn-player"></p>
+    <p id="learn-prompt" class="learn-prompt"></p>
+    <p id="learn-detail" class="learn-detail"></p>
+    <div class="learn-actions">
+      <button id="learn-skip" type="button">Skip</button>
+      <button id="learn-clear" type="button">Clear this button</button>
+      <button id="learn-cancel" type="button">Stop</button>
+    </div>
+  </div>
+</div>
+
+<script src="input.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

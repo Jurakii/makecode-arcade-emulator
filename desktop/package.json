@@ -1,0 +1,18 @@
+{
+  "name": "arcade-desktop-player",
+  "version": "0.1.0",
+  "description": "Offline desktop player for MakeCode Arcade games with USB arcade controller support",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "start:kiosk": "electron . --kiosk",
+    "start:offline": "electron . --offline"
+  },
+  "devDependencies": {
+    "electron": "^44.7.1"
+  },
+  "dependencies": {
+    "lzma": "^2.3.2"
+  }
+}
