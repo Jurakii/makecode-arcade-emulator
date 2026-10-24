@@ -52,7 +52,7 @@ kbd { font-family: ui-monospace, Consolas, monospace; background: var(--panel-2)
 .pill.online { color: var(--ok); }
 .pill.offline { color: var(--warn); }
 
-.add { display: flex; gap: 8px; }
+.add { display: flex; gap: 8px; margin-top: 10px; }
 .add input { flex: 1; min-width: 0; }
 .local-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; color: var(--muted); }
 .local-hint { flex-basis: 100%; font-size: 13px; }

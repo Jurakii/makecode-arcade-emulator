@@ -30,7 +30,8 @@ Two actions sit next to them:
 | Startup retry | `main.js`: the `whenReady` handler (`setTimeout(saveAllOffline, 15000)`) |
 | Update on/off and manual check | `updater.js`: `initUpdater({ autoCheckEnabled })`, `checkForUpdatesNow` |
 | IPC bridge | `preload.js`: `getSettings`, `setSettings`, `saveAllOffline`, `checkForUpdates` |
-| Screen, rows, controller navigation | `shell/index.html` (`#settings-view`), `shell/app.js` (`TOGGLES`, `renderSettings`, `navItem`, `navTick`), `shell/style.css` (`.setting-row`, `body.hide-tips .tip`) |
+| Screen and rows | `shell/index.html` (`#settings-view`), `shell/app.js` (`TOGGLES`, `renderSettings`), `shell/style.css` (`.setting-row`, `body.hide-tips .tip`) |
+| Controller navigation (every screen) | `shell/app.js`: `navTargets`, `moveFocus`, `goBack`, `navTick`; `shell/input.js`: `menuState` |
 
 To add another on/off setting:
 

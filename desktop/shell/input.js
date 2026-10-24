@@ -171,6 +171,17 @@
       return { players, system, pads };
     }
 
+    // Menus: an action counts when any player's controller binding is active on any connected
+    // controller, so changing which controller a player uses can't strand whoever holds the stick.
+    menuState() {
+      const pads = this.pads().filter(Boolean);
+      const state = {};
+      ACTIONS.forEach(a => {
+        state[a] = this.controls.players.some(pl => pads.some(gp => pl.pad[a].some(b => this.bindingActive(gp, b))));
+      });
+      return state;
+    }
+
     // ---------- Learn mode ----------
 
     // Remember what is currently held, so only a new press counts as the answer.

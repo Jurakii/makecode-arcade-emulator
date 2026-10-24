@@ -28,6 +28,7 @@
   let navHeld = null;
   let navNextAt = 0;
   let prevA = false;
+  let prevB = false;
 
   // Controls screen
   let controlsPlayer = 0;
@@ -54,6 +55,8 @@
     window.addEventListener("offline", updateNetStatus);
 
     $("add-form").addEventListener("submit", onAddGame);
+    $("show-add").addEventListener("click", showAddForm);
+    $("cancel-add").addEventListener("click", hideAddForm);
     $("open-settings").addEventListener("click", openSettings);
     $("close-settings").addEventListener("click", closeSettings);
     $("open-file").addEventListener("click", () => addLocal(() => window.player.openProject("file")));
@@ -92,13 +95,11 @@
       e.stopPropagation();
       return;
     }
-    if (mode === "settings" && e.key === "Escape") {
-      closeSettings();
-    } else if ((mode === "library" || mode === "settings") && !e.target.matches("input")) {
+    if (e.key === "Escape") {
+      goBack();
+    } else if (!e.target.matches("input")) {
       const dir = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" }[e.key];
       if (dir) { e.preventDefault(); moveFocus(dir); }
-    } else if (mode === "controls" && e.key === "Escape") {
-      closeControls();
     }
   }
 
@@ -126,7 +127,7 @@
     if (mode === "game") gameTick(now);
     else if (learn) learnTick();
     else if (mode === "library" || mode === "settings") navTick(now);
-    else if (mode === "controls") controlsTick();
+    else if (mode === "controls") { controlsTick(); navTick(now); }
     requestAnimationFrame(tick);
   }
 
@@ -226,6 +227,7 @@
     if (res.ok) {
       msg.textContent = `Added "${res.game.title}". Saving it for offline play in the background.`;
       input.value = "";
+      hideAddForm(true);
       await refreshLibrary();
       const card = document.querySelector(`.game[data-id="${CSS.escape(res.game.id)}"]`);
       if (card) card.focus();
@@ -233,6 +235,21 @@
       msg.className = "msg error";
       msg.textContent = res.error;
     }
+  }
+
+  function showAddForm() {
+    $("add-form").hidden = false;
+    $("show-add").setAttribute("aria-expanded", "true");
+    $("add-input").focus();
+  }
+
+  // keepMsg: leave the "Added ..." message showing after a successful add.
+  function hideAddForm(keepMsg) {
+    $("add-form").hidden = true;
+    $("show-add").setAttribute("aria-expanded", "false");
+    $("add-input").value = "";
+    if (keepMsg !== true) $("add-msg").textContent = "";
+    $("show-add").focus();
   }
 
   // Adds a project from disk. `pick` returns the main process's {ok, game, error, canceled}.
@@ -277,42 +294,76 @@
     });
   }
 
-  // Items the stick and arrow keys move between: game cards in the library, rows in settings.
-  function navItem() { return mode === "settings" ? ".setting" : ".game"; }
-  function cards() { return Array.from(document.querySelectorAll(navItem())); }
+  // ---------- controller and arrow-key navigation ----------
+
+  // Every button and dropdown on screen is reachable: the stick or arrow keys move to the
+  // nearest one in that direction, A presses it, B goes back. Only the link box needs typing.
+  function navTargets() {
+    const root = $({ library: "library-view", settings: "settings-view", controls: "controls-view" }[mode]);
+    if (!root) return [];
+    return Array.from(root.querySelectorAll("button, select")).filter(el => !el.disabled && el.getClientRects().length);
+  }
 
   function focusGame(index) {
-    const list = cards();
+    const list = Array.from(document.querySelectorAll(".game"));
     if (list.length) list[Math.max(0, Math.min(index, list.length - 1))].focus();
+    else if (mode === "library") $("show-add").focus();
   }
+
+  // Gap between two ranges (0 when they overlap).
+  function gap(a0, a1, b0, b1) { return Math.max(0, b0 - a1, a0 - b1); }
 
   function moveFocus(dir) {
-    const list = cards();
-    // In the library the Settings button sits above the cards: Up from the top row reaches it.
-    const top = mode === "library" ? $("open-settings") : null;
-    if (top && document.activeElement === top) {
-      if (dir === "down" && list.length) list[0].focus();
+    const list = navTargets();
+    if (!list.length) return;
+    const cur = document.activeElement;
+    if (!list.includes(cur)) { (list.find(el => el.matches(".game")) || list[0]).focus(); return; }
+    // Left/right on a dropdown picks the previous/next option.
+    if (cur.tagName === "SELECT" && (dir === "left" || dir === "right")) {
+      const i = cur.selectedIndex + (dir === "left" ? -1 : 1);
+      if (i >= 0 && i < cur.options.length) {
+        cur.selectedIndex = i;
+        cur.dispatchEvent(new Event("change", { bubbles: true }));
+      }
       return;
     }
-    if (!list.length) { if (top) top.focus(); return; }
-    const at = list.indexOf(document.activeElement);
-    if (at < 0) { list[0].focus(); return; }
-    const cols = list.filter(c => c.offsetTop === list[0].offsetTop).length || 1;
-    const step = { left: -1, right: 1, up: -cols, down: cols }[dir];
-    const next = at + step;
-    if (next >= 0 && next < list.length) {
-      list[next].focus();
-      list[next].scrollIntoView({ block: "nearest" });
-    } else if (top && dir === "up") {
-      top.focus();
-      top.scrollIntoView({ block: "nearest" });
+    const a = cur.getBoundingClientRect();
+    const ax = a.left + a.width / 2, ay = a.top + a.height / 2;
+    let best = null, bestScore = Infinity;
+    for (const el of list) {
+      if (el === cur) continue;
+      const b = el.getBoundingClientRect();
+      const bx = b.left + b.width / 2, by = b.top + b.height / 2;
+      let along, side;
+      if (dir === "up" || dir === "down") {
+        if (dir === "up" ? by >= ay - 1 : by <= ay + 1) continue;
+        along = dir === "up" ? Math.max(0, a.top - b.bottom) : Math.max(0, b.top - a.bottom);
+        side = gap(a.left, a.right, b.left, b.right);
+      } else {
+        if (dir === "left" ? bx >= ax - 1 : bx <= ax + 1) continue;
+        along = dir === "left" ? Math.max(0, a.left - b.right) : Math.max(0, b.left - a.right);
+        side = gap(a.top, a.bottom, b.top, b.bottom);
+      }
+      // Prefer things in line with the current one; break ties by centre distance.
+      const score = along + side * 3 + Math.hypot(bx - ax, by - ay) / 100;
+      if (score < bestScore) { bestScore = score; best = el; }
+    }
+    if (best) {
+      best.focus();
+      best.scrollIntoView({ block: "nearest" });
     }
   }
 
-  // Controller navigation of the library and settings: stick moves, A plays or toggles.
+  // B or Esc: leave the current screen (or close the link box).
+  function goBack() {
+    if (mode === "settings") closeSettings();
+    else if (mode === "controls") closeControls();
+    else if (mode === "library" && !$("add-form").hidden) hideAddForm();
+  }
+
   function navTick(now) {
-    const s = mapper.poll(false);
-    const any = a => s.players.some(p => p[a]);
+    const st = mapper.menuState();
+    const any = a => st[a];
     const dir = ["up", "down", "left", "right"].find(any) || null;
     if (dir !== navHeld) {
       navHeld = dir;
@@ -321,13 +372,15 @@
       moveFocus(dir);
       navNextAt = now + NAV_REPEAT_MS;
     }
-    const a = any("a");
+    const a = any("a"), b = any("b");
     if (a && !prevA) {
       const el = document.activeElement;
-      if (el && (el.matches(navItem()) || (mode === "library" && el.id === "open-settings"))) el.click();
-      else focusGame(0);
+      if (navTargets().includes(el)) { if (el.tagName !== "SELECT") el.click(); }
+      else moveFocus("down");
     }
+    if (b && !prevB) goBack();
     prevA = a;
+    prevB = b;
   }
 
   // ---------- playing ----------
@@ -423,7 +476,7 @@
     await window.player.stopGame();
     mapper.clearKeys();
     navHeld = null;
-    prevA = true; // the A/B still held from the game shouldn't launch something
+    prevA = prevB = true; // the A/B still held from the game shouldn't launch something
     showView("library");
     await refreshLibrary();
     const card = currentGame && document.querySelector(`.game[data-id="${CSS.escape(currentGame.id)}"]`);
