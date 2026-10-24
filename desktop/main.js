@@ -385,6 +385,7 @@ function createWindow() {
     height: 800,
     backgroundColor: "#000000",
     title: "Arcade Player",
+    icon: path.join(__dirname, "build", "icon.png"),
     kiosk: KIOSK,
     fullscreen: !KIOSK && getSettings().startFullscreen,
     autoHideMenuBar: true,

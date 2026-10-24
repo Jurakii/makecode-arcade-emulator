@@ -24,7 +24,8 @@
       "local-project.js",
       "updater.js",
       "shell/**/*",
-      "package.json"
+      "package.json",
+      "build/icon.png"
     ],
     "directories": {
       "output": "dist"
@@ -43,7 +44,8 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": true,
