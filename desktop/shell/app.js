@@ -288,7 +288,13 @@
 
   function moveFocus(dir) {
     const list = cards();
-    if (!list.length) return;
+    // In the library the Settings button sits above the cards: Up from the top row reaches it.
+    const top = mode === "library" ? $("open-settings") : null;
+    if (top && document.activeElement === top) {
+      if (dir === "down" && list.length) list[0].focus();
+      return;
+    }
+    if (!list.length) { if (top) top.focus(); return; }
     const at = list.indexOf(document.activeElement);
     if (at < 0) { list[0].focus(); return; }
     const cols = list.filter(c => c.offsetTop === list[0].offsetTop).length || 1;
@@ -297,6 +303,9 @@
     if (next >= 0 && next < list.length) {
       list[next].focus();
       list[next].scrollIntoView({ block: "nearest" });
+    } else if (top && dir === "up") {
+      top.focus();
+      top.scrollIntoView({ block: "nearest" });
     }
   }
 
@@ -314,7 +323,8 @@
     }
     const a = any("a");
     if (a && !prevA) {
-      if (document.activeElement && document.activeElement.matches(navItem())) document.activeElement.click();
+      const el = document.activeElement;
+      if (el && (el.matches(navItem()) || (mode === "library" && el.id === "open-settings"))) el.click();
       else focusGame(0);
     }
     prevA = a;

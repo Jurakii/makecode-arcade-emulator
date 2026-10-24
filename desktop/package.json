@@ -1,7 +1,7 @@
 {
   "name": "arcade-desktop-player",
   "productName": "Arcade Player",
-  "version": "0.2.0",
+  "version": "1.2.1",
   "description": "Offline desktop player for MakeCode Arcade games with USB arcade controller support",
   "author": "Jurakii",
   "homepage": "https://github.com/Jurakii/makecode-arcade-emulator",
