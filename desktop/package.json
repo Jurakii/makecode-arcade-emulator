@@ -1,7 +1,7 @@
 {
   "name": "arcade-desktop-player",
   "productName": "Arcade Player",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Offline desktop player for MakeCode Arcade games with USB arcade controller support",
   "author": "Jurakii",
   "homepage": "https://github.com/Jurakii/makecode-arcade-emulator",
@@ -36,6 +36,12 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
@@ -51,7 +57,10 @@
         "repo": "makecode-arcade-emulator",
         "releaseType": "release"
       }
-    ]
+    ],
+    "portable": {
+      "artifactName": "Arcade-Player-Portable-${version}.${ext}"
+    }
   },
   "devDependencies": {
     "electron": "^44.7.1",
