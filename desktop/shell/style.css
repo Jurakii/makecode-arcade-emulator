@@ -106,16 +106,6 @@ kbd { font-family: ui-monospace, Consolas, monospace; background: var(--panel-2)
 .game .badge.ready { color: var(--ok); }
 .game .badge.saving { color: var(--warn); }
 .game .source { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
-.remove {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 2px 9px;
-  font-size: 13px;
-  background: rgba(0, 0, 0, 0.7);
-  opacity: 0;
-}
-.game-item:hover .remove, .remove:focus-visible { opacity: 1; }
 .empty { color: var(--muted); padding: 40px 0; text-align: center; }
 .hint { margin-top: 28px; color: var(--muted); font-size: 13px; }
 

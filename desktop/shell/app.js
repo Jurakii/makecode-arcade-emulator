@@ -192,19 +192,7 @@
       }
       card.append(img, meta);
 
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "remove";
-      remove.textContent = "×";
-      remove.title = "Remove from library";
-      remove.setAttribute("aria-label", `Remove ${game.title}`);
-      remove.addEventListener("click", async () => {
-        await window.player.removeGame(game.id);
-        await refreshLibrary();
-        focusGame(0);
-      });
-
-      li.append(card, remove);
+      li.append(card);
       list.append(li);
     }
     if (focusedId) {
@@ -507,6 +495,7 @@
   }
 
   function closeSettings() {
+    pendingRemove = null;
     mode = "library";
     showView("library");
     renderLibrary();
@@ -565,12 +554,44 @@
       "Tries to download every game that isn't saved for offline yet, one at a time. Needs an internet connection.",
       missing ? `${missing} to save` : "All saved", runSaveOffline));
 
+    // Removing is only offered here, not on the library cards, so a stray press there can't
+    // delete a game. Each row needs a second press to confirm.
+    const list = $("settings-games");
+    list.textContent = "";
+    $("settings-games-empty").hidden = games.length > 0;
+    for (const g of games) {
+      const sure = pendingRemove === g.id;
+      list.append(settingRow("remove:" + g.id, g.title,
+        g.kind === "local" ? `Local file: ${g.path.split(/[\\/]/).pop()}` : "From a MakeCode share link",
+        sure ? "Press again to remove" : "Remove", () => removeGame(g)));
+    }
+
     $("about").textContent = `Arcade Player v${info.version}. Your library and offline files are in ${info.dataDir}.`;
 
     if (focusKey) {
       const again = document.querySelector(`#settings-view [data-key="${CSS.escape(focusKey)}"]`);
       if (again) again.focus();
     }
+  }
+
+  let pendingRemove = null; // id of the game whose Remove row is waiting for a second press
+
+  async function removeGame(g) {
+    if (pendingRemove !== g.id) {
+      pendingRemove = g.id;
+      settingsMsg("");
+      renderSettings();
+      return;
+    }
+    pendingRemove = null;
+    // Keep focus in the list: move to the next row (or the previous one at the end).
+    const rows = Array.from(document.querySelectorAll("#settings-games .setting"));
+    const at = rows.findIndex(r => r.dataset.key === "remove:" + g.id);
+    const next = rows[at + 1] || rows[at - 1];
+    await window.player.removeGame(g.id);
+    settingsMsg(`Removed "${g.title}" from the library.`);
+    if (next) next.focus(); else $("close-settings").focus();
+    await refreshLibrary();
   }
 
   async function toggleSetting(key) {
