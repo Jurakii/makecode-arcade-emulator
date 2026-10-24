@@ -17,6 +17,7 @@
     <span id="update-status" class="pill" role="status"></span>
     <div class="bar-actions">
       <button id="update-button" type="button" class="primary" hidden>Restart to update</button>
+      <button id="open-settings" type="button">Settings</button>
       <button id="open-controls" type="button">Controls</button>
       <button id="quit" type="button">Quit</button>
     </div>
@@ -32,14 +33,14 @@
     <span>Or add a project from this computer:</span>
     <button id="open-file" type="button">Open file…</button>
     <button id="open-folder" type="button">Open folder…</button>
-    <span class="local-hint">You can also drop a .png, .uf2, .zip, .ts file or a project folder onto this window.</span>
+    <span class="local-hint tip">You can also drop a .png, .uf2, .zip, .ts file or a project folder onto this window.</span>
   </div>
   <p id="add-msg" class="msg" role="status"></p>
 
   <ul id="games" class="games"></ul>
   <p id="empty" class="empty" hidden>No games yet. Paste a share link above to add one.</p>
 
-  <footer class="hint">
+  <footer class="hint tip">
     Pick a game with the stick or arrow keys, then press <b>A</b> or <kbd>Enter</kbd>.
     In a game, hold <b>Menu + B</b> or press <kbd>Esc</kbd> to come back here. <kbd>F11</kbd> toggles full screen.
   </footer>
@@ -54,6 +55,25 @@
     <p id="overlay-sub" class="overlay-sub"></p>
   </div>
   <div id="exit-meter" class="exit-meter" hidden><span></span></div>
+</section>
+
+<section id="settings-view" class="view" hidden>
+  <header class="bar">
+    <h1>Settings</h1>
+    <div class="bar-actions">
+      <button id="close-settings" type="button" class="primary setting">Done</button>
+    </div>
+  </header>
+
+  <h2>General</h2>
+  <div id="settings-general" class="settings-list"></div>
+
+  <h2>Offline</h2>
+  <div id="settings-offline" class="settings-list"></div>
+  <p id="settings-msg" class="msg" role="status"></p>
+
+  <h2>About</h2>
+  <p id="about" class="note"></p>
 </section>
 
 <section id="controls-view" class="view" hidden>
@@ -83,10 +103,10 @@
     <thead><tr><th>Action</th><th>Keyboard</th><th>Controller (player 1's)</th><th class="live-col">Live</th><th></th></tr></thead>
     <tbody id="system-rows"></tbody>
   </table>
-  <p class="note">Holding <b>Menu + B</b> on player 1 for 1.5 seconds also quits a game, so a cabinet doesn't need a keyboard.</p>
+  <p class="note tip">Holding <b>Menu + B</b> on player 1 for 1.5 seconds also quits a game, so a cabinet doesn't need a keyboard.</p>
 
   <h2>Connected controllers</h2>
-  <p class="note">Press anything on a controller to wake it up. Lit numbers are buttons being pressed right now.</p>
+  <p class="note tip">Press anything on a controller to wake it up. Lit numbers are buttons being pressed right now.</p>
   <div id="pad-monitor" class="pad-monitor"></div>
 </section>
 

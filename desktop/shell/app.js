@@ -11,8 +11,9 @@
   let info = {};
   let controls = null;
   let mapper = null;
-  let mode = "library";       // "library" | "game" | "controls"
+  let mode = "library";       // "library" | "game" | "controls" | "settings"
   let games = [];
+  let settings = {};
 
   // In-game state
   let currentGame = null;
@@ -38,6 +39,8 @@
   async function init() {
     info = await window.player.info();
     await window.player.stopGame(); // in case the page reloaded mid-game
+    settings = await window.player.getSettings();
+    applySettings();
     controls = I.normalizeControls(await window.player.getControls());
     mapper = new I.InputMapper(controls);
 
@@ -51,6 +54,8 @@
     window.addEventListener("offline", updateNetStatus);
 
     $("add-form").addEventListener("submit", onAddGame);
+    $("open-settings").addEventListener("click", openSettings);
+    $("close-settings").addEventListener("click", closeSettings);
     $("open-file").addEventListener("click", () => addLocal(() => window.player.openProject("file")));
     $("open-folder").addEventListener("click", () => addLocal(() => window.player.openProject("folder")));
     setUpDrop();
@@ -87,7 +92,9 @@
       e.stopPropagation();
       return;
     }
-    if (mode === "library" && !e.target.matches("input")) {
+    if (mode === "settings" && e.key === "Escape") {
+      closeSettings();
+    } else if ((mode === "library" || mode === "settings") && !e.target.matches("input")) {
       const dir = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" }[e.key];
       if (dir) { e.preventDefault(); moveFocus(dir); }
     } else if (mode === "controls" && e.key === "Escape") {
@@ -118,7 +125,7 @@
   function tick(now) {
     if (mode === "game") gameTick(now);
     else if (learn) learnTick();
-    else if (mode === "library") libraryTick(now);
+    else if (mode === "library" || mode === "settings") navTick(now);
     else if (mode === "controls") controlsTick();
     requestAnimationFrame(tick);
   }
@@ -127,6 +134,7 @@
     $("library-view").hidden = name !== "library";
     $("game-view").hidden = name !== "game";
     $("controls-view").hidden = name !== "controls";
+    $("settings-view").hidden = name !== "settings";
   }
 
   // ---------- library ----------
@@ -135,6 +143,7 @@
     games = await window.player.listGames();
     games.sort((a, b) => String(b.lastPlayedAt || b.addedAt).localeCompare(String(a.lastPlayedAt || a.addedAt)));
     if (mode === "library") renderLibrary();
+    if (mode === "settings") renderSettings();
   }
 
   function renderLibrary() {
@@ -268,7 +277,9 @@
     });
   }
 
-  function cards() { return Array.from(document.querySelectorAll(".game")); }
+  // Items the stick and arrow keys move between: game cards in the library, rows in settings.
+  function navItem() { return mode === "settings" ? ".setting" : ".game"; }
+  function cards() { return Array.from(document.querySelectorAll(navItem())); }
 
   function focusGame(index) {
     const list = cards();
@@ -289,8 +300,8 @@
     }
   }
 
-  // Controller navigation of the library: stick moves, A plays.
-  function libraryTick(now) {
+  // Controller navigation of the library and settings: stick moves, A plays or toggles.
+  function navTick(now) {
     const s = mapper.poll(false);
     const any = a => s.players.some(p => p[a]);
     const dir = ["up", "down", "left", "right"].find(any) || null;
@@ -303,7 +314,7 @@
     }
     const a = any("a");
     if (a && !prevA) {
-      if (document.activeElement && document.activeElement.classList.contains("game")) document.activeElement.click();
+      if (document.activeElement && document.activeElement.matches(navItem())) document.activeElement.click();
       else focusGame(0);
     }
     prevA = a;
@@ -409,6 +420,117 @@
     if (card) card.focus(); else focusGame(0);
   }
 
+  // ---------- settings screen ----------
+
+  // [key, label, description] for the on/off settings. Saved to settings.json by main.js.
+  const TOGGLES = [
+    ["startWithWindows", "Start with Windows", "Opens Arcade Player when you sign in. Installed app only."],
+    ["startFullscreen", "Start full screen", "Opens the window full screen. F11 still toggles it."],
+    ["hideTips", "Hide tips", "Hides all the instructions for a cleaner look."],
+    ["saveMissingOnStart", "Save missing games at startup", "Retries any game that isn't saved for offline yet, shortly after the app starts."],
+    ["autoUpdate", "Check for updates automatically", "Looks for a new version on GitHub Releases every few hours."]
+  ];
+
+  function applySettings() {
+    document.body.classList.toggle("hide-tips", !!settings.hideTips);
+  }
+
+  function openSettings() {
+    mode = "settings";
+    showView("settings");
+    refreshLibrary(); // renders the settings once the game list is current
+    renderSettings();
+    $("close-settings").focus();
+  }
+
+  function closeSettings() {
+    mode = "library";
+    showView("library");
+    renderLibrary();
+    focusGame(0);
+  }
+
+  function settingRow(key, label, desc, value, onClick, pressed) {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "setting setting-row";
+    row.dataset.key = key;
+    if (pressed !== undefined) row.setAttribute("aria-pressed", String(pressed));
+    const text = document.createElement("span");
+    text.className = "setting-text";
+    const name = document.createElement("span");
+    name.className = "setting-label";
+    name.textContent = label;
+    const note = document.createElement("span");
+    note.className = "setting-desc";
+    note.textContent = desc;
+    text.append(name, note);
+    const val = document.createElement("span");
+    val.className = "setting-value";
+    val.textContent = value;
+    row.append(text, val);
+    row.addEventListener("click", onClick);
+    return row;
+  }
+
+  function settingsMsg(text, error) {
+    const msg = $("settings-msg");
+    msg.className = error ? "msg error" : "msg";
+    msg.textContent = text;
+  }
+
+  function renderSettings() {
+    // Re-rendering replaces the buttons, so keep the keyboard/controller focus on the same row.
+    const focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.key : null;
+
+    const general = $("settings-general");
+    general.textContent = "";
+    for (const [key, label, desc] of TOGGLES) {
+      const on = !!settings[key];
+      general.append(settingRow(key, label, desc, on ? "On" : "Off", () => toggleSetting(key), on));
+    }
+    general.append(settingRow("check-updates", "Check for updates now",
+      "Installed copies also check every few hours and install a new version on the next restart.",
+      "Check", checkUpdatesNow));
+    general.append(settingRow("controls", "Controls",
+      "Keyboard and controller bindings, and which controller each player uses.", "Open", openControls));
+
+    const missing = games.filter(g => !g.offlineReady).length;
+    const offline = $("settings-offline");
+    offline.textContent = "";
+    offline.append(settingRow("save-offline", "Run Save For Offline",
+      "Tries to download every game that isn't saved for offline yet, one at a time. Needs an internet connection.",
+      missing ? `${missing} to save` : "All saved", runSaveOffline));
+
+    $("about").textContent = `Arcade Player v${info.version}. Your library and offline files are in ${info.dataDir}.`;
+
+    if (focusKey) {
+      const again = document.querySelector(`#settings-view [data-key="${CSS.escape(focusKey)}"]`);
+      if (again) again.focus();
+    }
+  }
+
+  async function toggleSetting(key) {
+    settings = await window.player.setSettings({ [key]: !settings[key] });
+    applySettings();
+    renderSettings();
+  }
+
+  async function checkUpdatesNow() {
+    settingsMsg("Checking for updates…");
+    const started = await window.player.checkForUpdates();
+    settingsMsg(started ? "" : "Updates only run in the installed app.");
+  }
+
+  async function runSaveOffline() {
+    const res = await window.player.saveAllOffline();
+    if (!res.ok) settingsMsg(res.error, true);
+    else if (res.alreadyRunning) settingsMsg(`Already saving games in the background (${res.queued} left).`);
+    else if (res.queued) settingsMsg(`Saving ${res.queued} game${res.queued === 1 ? "" : "s"} in the background. Each card shows its progress in the library.`);
+    else settingsMsg("Every game is already saved for offline.");
+    await refreshLibrary();
+  }
+
   // ---------- controls screen ----------
 
   function saveControls() {
@@ -416,7 +538,10 @@
     window.player.setControls(controls);
   }
 
+  let controlsFrom = "library"; // Controls can be opened from the library or from Settings
+
   function openControls() {
+    controlsFrom = mode === "settings" ? "settings" : "library";
     mode = "controls";
     showView("controls");
     renderControls();
@@ -425,6 +550,7 @@
 
   function closeControls() {
     if (learn) finishLearn();
+    if (controlsFrom === "settings") { openSettings(); return; }
     mode = "library";
     showView("library");
     renderLibrary();

@@ -10,7 +10,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { RequestCache } = require("./cache");
 const { readLocalProject, ProjectError } = require("./local-project");
-const { initUpdater, updateState, installUpdate } = require("./updater");
+const { initUpdater, updateState, installUpdate, checkForUpdatesNow } = require("./updater");
 
 const ARCADE = "https://arcade.makecode.com";
 const OFFLINE = process.argv.includes("--offline");   // cache only, for testing offline play
@@ -41,6 +41,32 @@ function writeJson(name, value) {
   fs.writeFileSync(path.join(dataDir, name), JSON.stringify(value, null, 2));
 }
 
+// ---------- settings ----------
+
+const DEFAULT_SETTINGS = {
+  startWithWindows: false,
+  startFullscreen: false,
+  hideTips: false,
+  saveMissingOnStart: true,
+  autoUpdate: true
+};
+
+function getSettings() {
+  return { ...DEFAULT_SETTINGS, ...readJson("settings.json", {}) };
+}
+
+function setSettings(patch) {
+  const next = { ...getSettings(), ...patch };
+  writeJson("settings.json", next);
+  applyLoginItem(next.startWithWindows);
+  return next;
+}
+
+// Only the installed app has a stable path to register; a dev checkout would register electron.exe.
+function applyLoginItem(on) {
+  if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: !!on });
+}
+
 // ---------- game library ----------
 
 // Accepts a share link (makecode.com/_xxx, arcade.makecode.com/12345-...), a ---run URL, or a bare id.
@@ -63,8 +89,31 @@ function libraryWithStatus() {
     ...g,
     // A local project's source is always on disk; it only needs the runner cached.
     offlineReady: !!g.cachedAt && (g.kind === "local" || cache.has(textUrl(g.id))),
-    saving: warming.has(g.id)
+    saving: warming.has(g.id) || queuedSaves.has(g.id)
   }));
+}
+
+// "Run Save For Offline": saves every game that isn't ready yet, one at a time, in the background.
+// Games are also retried at startup (see whenReady), so a save that failed earlier gets another go.
+const queuedSaves = new Set();
+let savingAll = false;
+
+function saveAllOffline() {
+  if (OFFLINE) return { ok: false, error: "Offline mode only plays saved games." };
+  if (savingAll) return { ok: true, queued: queuedSaves.size, alreadyRunning: true };
+  const todo = libraryWithStatus().filter(g => !g.offlineReady && !g.saving).map(g => g.id);
+  if (!todo.length) return { ok: true, queued: 0 };
+  savingAll = true;
+  todo.forEach(id => queuedSaves.add(id));
+  send("library:changed");
+  (async () => {
+    for (const id of todo) {
+      queuedSaves.delete(id);
+      await warmCache(id);
+    }
+    savingAll = false;
+  })();
+  return { ok: true, queued: todo.length };
 }
 
 async function addGame(input) {
@@ -189,7 +238,7 @@ function handleLocalApi(request) {
 // project source all land in the cache. Resolves when the simulator is running.
 const warming = new Set();
 async function warmCache(id) {
-  if (OFFLINE || warming.has(id)) return;
+  if (OFFLINE || warming.has(id)) return false;
   warming.add(id);
   const hidden = new BrowserWindow({ show: false, webPreferences: { backgroundThrottling: false } });
   hidden.webContents.setAudioMuted(true);
@@ -206,6 +255,7 @@ async function warmCache(id) {
   }
   if (ok) updateGame(id, { cachedAt: new Date().toISOString() });
   send("library:changed");
+  return ok;
 }
 
 // Local projects have no MakeCode thumbnail, so use the game's opening screen
@@ -336,6 +386,7 @@ function createWindow() {
     backgroundColor: "#000000",
     title: "Arcade Player",
     kiosk: KIOSK,
+    fullscreen: !KIOSK && getSettings().startFullscreen,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -399,6 +450,10 @@ ipcMain.handle("controls:set", (_e, value) => { writeJson("controls.json", value
 ipcMain.handle("app:info", () => ({ offline: OFFLINE, kiosk: KIOSK, dataDir, version: app.getVersion() }));
 ipcMain.handle("update:get", () => updateState());
 ipcMain.handle("update:install", () => installUpdate());
+ipcMain.handle("update:check", () => checkForUpdatesNow());
+ipcMain.handle("settings:get", () => getSettings());
+ipcMain.handle("settings:set", (_e, patch) => setSettings(patch));
+ipcMain.handle("library:saveAll", () => saveAllOffline());
 
 ipcMain.handle("game:start", async (_e, id) => {
   let url;
@@ -420,7 +475,13 @@ app.whenReady().then(() => {
   session.defaultSession.protocol.handle("https", req => handleLocalApi(req) || cache.handle(req));
   Menu.setApplicationMenu(null);
   createWindow();
-  initUpdater({ offline: OFFLINE, onChange: state => send("update:status", state) });
+  applyLoginItem(getSettings().startWithWindows);
+  initUpdater({
+    offline: OFFLINE,
+    onChange: state => send("update:status", state),
+    autoCheckEnabled: () => getSettings().autoUpdate
+  });
+  if (!OFFLINE && getSettings().saveMissingOnStart) setTimeout(saveAllOffline, 15000);
 });
 
 app.on("window-all-closed", () => app.quit());

@@ -15,19 +15,23 @@ const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
 
 let state = { status: "idle", version: app.getVersion() };
 let notify = () => {};
+let active = false;
+let autoCheckEnabled = () => true;
 
 function setState(patch) {
   state = Object.assign({}, state, patch);
   notify(state);
 }
 
-function initUpdater({ onChange, offline }) {
+function initUpdater({ onChange, offline, autoCheckEnabled: autoCheck }) {
   notify = onChange;
+  if (autoCheck) autoCheckEnabled = autoCheck;
   const testFeed = process.env.ARCADE_UPDATE_URL;
   if ((!app.isPackaged && !testFeed) || offline) {
     setState({ status: "disabled" });
     return;
   }
+  active = true;
   if (testFeed) {
     autoUpdater.forceDevUpdateConfig = true;
     autoUpdater.setFeedURL({ provider: "generic", url: testFeed });
@@ -45,9 +49,23 @@ function initUpdater({ onChange, offline }) {
   // Offline or GitHub unreachable: stay quiet and try again at the next check.
   autoUpdater.on("error", err => setState({ status: "error", error: String(err && err.message || err).split("\n")[0] }));
 
-  const check = () => autoUpdater.checkForUpdates().catch(() => {});
-  setTimeout(check, CHECK_DELAY_MS);
-  setInterval(check, CHECK_EVERY_MS);
+  // The "automatic checks" setting only gates the timed checks; a manual check always runs.
+  const check = (manual = false) => {
+    if (!manual && !autoCheckEnabled()) return;
+    autoUpdater.checkForUpdates().catch(() => {});
+  };
+  setTimeout(() => check(false), CHECK_DELAY_MS);
+  setInterval(() => check(false), CHECK_EVERY_MS);
+  checkNow = () => check(true);
+}
+
+let checkNow = () => {};
+
+// Returns false when updates can't run here (dev checkout, offline mode).
+function checkForUpdatesNow() {
+  if (!active) return false;
+  checkNow();
+  return true;
 }
 
 function updateState() {
@@ -61,4 +79,4 @@ function installUpdate() {
   return true;
 }
 
-module.exports = { initUpdater, updateState, installUpdate };
+module.exports = { initUpdater, updateState, installUpdate, checkForUpdatesNow };

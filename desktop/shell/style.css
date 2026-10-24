@@ -173,6 +173,35 @@ h2 { font-size: 16px; margin: 28px 0 8px; }
 .learn-detail { color: var(--muted); min-height: 1.45em; margin: 0 0 18px; }
 .learn-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 
+/* Settings */
+.settings-list { display: grid; gap: 8px; }
+.setting-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  padding: 12px 14px;
+  background: var(--panel);
+}
+.setting-text { flex: 1; min-width: 0; }
+.setting-label { display: block; font-weight: 600; }
+.setting-desc { display: block; font-size: 13px; color: var(--muted); font-weight: 400; }
+.setting-value {
+  flex: none;
+  min-width: 72px;
+  text-align: center;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  font-size: 13px;
+}
+.setting-row[aria-pressed="true"] .setting-value { background: var(--ok); border-color: var(--ok); color: #0b1a05; font-weight: 600; }
+
+/* "Hide tips" removes every instruction line marked .tip. */
+body.hide-tips .tip { display: none !important; }
+
 @media (max-width: 600px) {
   .view { padding: 16px; }
   .add { flex-direction: column; }

@@ -19,7 +19,12 @@ contextBridge.exposeInMainWorld("player", {
   setButton: (key, pressed) => ipcRenderer.send("game:button", key, pressed),
   quit: () => ipcRenderer.send("app:quit"),
 
+  getSettings: () => ipcRenderer.invoke("settings:get"),
+  setSettings: patch => ipcRenderer.invoke("settings:set", patch),
+  saveAllOffline: () => ipcRenderer.invoke("library:saveAll"),
+
   getUpdate: () => ipcRenderer.invoke("update:get"),
+  checkForUpdates: () => ipcRenderer.invoke("update:check"),
   installUpdate: () => ipcRenderer.invoke("update:install"),
   onUpdate: fn => ipcRenderer.on("update:status", (_e, state) => fn(state)),
 
