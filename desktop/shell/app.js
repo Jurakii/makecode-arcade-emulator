@@ -179,11 +179,24 @@
       title.textContent = game.title;
       const badge = document.createElement("span");
       const local = game.kind === "local";
-      if (game.saving) { badge.className = "badge saving"; badge.textContent = local ? "Checking project…" : "Saving for offline…"; }
-      else if (game.offlineReady) { badge.className = "badge ready"; badge.textContent = local ? "Local file · ready offline" : "Saved for offline"; }
-      else { badge.className = "badge"; badge.textContent = local ? "Local file" : "Not saved for offline yet"; }
-      meta.append(title, badge);
-      if (local) {
+      let state, text;
+      if (game.saving) { state = "saving"; text = local ? "Checking project…" : "Saving for offline…"; }
+      else if (game.offlineReady) { state = "ready"; text = local ? "Local file · ready offline" : "Saved for offline"; }
+      else { state = ""; text = local ? "Local file" : "Not saved for offline yet"; }
+      if (settings.verbose) {
+        badge.className = "badge " + state;
+        badge.textContent = text;
+        meta.append(title, badge);
+      } else {
+        // Compact: a dot before the title. Green = ready offline, yellow = not yet (pulses while saving).
+        badge.className = "status-dot " + (state || "pending");
+        badge.title = text;
+        badge.setAttribute("role", "img");
+        badge.setAttribute("aria-label", text);
+        title.prepend(badge);
+        meta.append(title);
+      }
+      if (local && settings.verbose) {
         const source = document.createElement("span");
         source.className = "source";
         source.textContent = game.path.split(/[\\/]/).pop();
@@ -482,6 +495,10 @@
     ["autoUpdate", "Check for updates automatically", "Looks for a new version on GitHub Releases every few hours."]
   ];
 
+  const ADVANCED_TOGGLES = [
+    ["verbose", "Verbose", "Shows each game's offline status and source file as text instead of a coloured dot."]
+  ];
+
   function applySettings() {
     document.body.classList.toggle("hide-tips", !!settings.hideTips);
   }
@@ -548,6 +565,12 @@
       const on = !!settings[key];
       general.append(settingRow(key, label, desc, on ? "On" : "Off", () => toggleSetting(key), on));
     }
+    const advanced = $("settings-advanced");
+    advanced.textContent = "";
+    for (const [key, label, desc] of ADVANCED_TOGGLES) {
+      const on = !!settings[key];
+      advanced.append(settingRow(key, label, desc, on ? "On" : "Off", () => toggleSetting(key), on));
+    }
     general.append(settingRow("check-updates", "Check for updates now",
       "Installed copies also check every few hours and install a new version on the next restart.",
       "Check", checkUpdatesNow));
@@ -577,7 +600,10 @@
     system.textContent = "";
     system.append(settingRow("shutdown", "Shut down this PC",
       "Closes Arcade Player and turns the computer off. Press twice to confirm.",
-      pending === "shutdown" ? "Press again to shut down" : "Shut down", shutDown));
+      pending === "shutdown" ? "Press again to shut down" : "Shut down", () => power("shutdown")));
+    system.append(settingRow("restart", "Restart this PC",
+      "Closes Arcade Player and restarts the computer. Press twice to confirm.",
+      pending === "restart" ? "Press again to restart" : "Restart", () => power("restart")));
 
     $("about").textContent = `Arcade Player v${info.version}. Your library and offline files are in ${info.dataDir}.`;
 
@@ -599,11 +625,12 @@
     return true;
   }
 
-  async function shutDown() {
-    if (needsConfirm("shutdown")) return;
+  // action: "shutdown" or "restart".
+  async function power(action) {
+    if (needsConfirm(action)) return;
     renderSettings();
-    settingsMsg("Shutting down\u2026");
-    const res = await window.player.shutdown();
+    settingsMsg(action === "restart" ? "Restarting\u2026" : "Shutting down\u2026");
+    const res = await window.player.power(action);
     if (!res.ok) settingsMsg(res.error, true);
   }
 

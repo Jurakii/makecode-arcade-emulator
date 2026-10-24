@@ -105,6 +105,18 @@ kbd { font-family: ui-monospace, Consolas, monospace; background: var(--panel-2)
 .game .badge { display: inline-block; margin-top: 4px; font-size: 12px; color: var(--muted); }
 .game .badge.ready { color: var(--ok); }
 .game .badge.saving { color: var(--warn); }
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: 1px;
+}
+.status-dot.ready { background: var(--ok); }
+.status-dot.pending, .status-dot.saving { background: var(--warn); }
+.status-dot.saving { animation: pulse 1s ease-in-out infinite alternate; }
+@keyframes pulse { to { opacity: 0.25; } }
 .game .source { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .empty { color: var(--muted); padding: 40px 0; text-align: center; }
 .hint { margin-top: 28px; color: var(--muted); font-size: 13px; }

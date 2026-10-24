@@ -13,13 +13,14 @@ Settings are saved to `settings.json` in the data folder (`%APPDATA%\arcade-desk
 | `hideTips` | Hide tips | off | Hides every instruction line (anything marked `tip`). The page sets a `hide-tips` class on `<body>`. |
 | `saveMissingOnStart` | Save missing games at startup | on | 15 seconds after launch, runs the same job as **Run Save For Offline** for every game not yet saved. |
 | `autoUpdate` | Check for updates automatically | on | Turns off the 5-second and 6-hourly timed update checks. "Check for updates now" still works. |
+| `verbose` | Verbose (Advanced section) | off | Game cards show their offline status and source file as text. Off shows a dot before the title: green = ready offline, yellow = not saved yet (pulses while saving). |
 
 Two actions sit next to them:
 
 - **Check for updates now** calls the updater directly.
 - **Run Save For Offline** saves every game that isn't saved yet. It shows "N to save" on its row and "All saved" when there's nothing left to do.
 - **Controls** opens the existing controls screen.
-- **Games** lists every game with a **Remove** row, and **System** has **Shut down this PC** (Windows `shutdown /s /t 0`, via `system:shutdown` in `main.js`). Both need a second press: the row turns red and reads "Press again to …". Pressing any other row cancels it.
+- **Games** lists every game with a **Remove** row, and **System** has **Shut down this PC** and **Restart this PC** (Windows `shutdown /s` or `/r /t 0`, via `system:power` in `main.js`). Both need a second press: the row turns red and reads "Press again to …". Pressing any other row cancels it.
 
 ## Where the code lives
 

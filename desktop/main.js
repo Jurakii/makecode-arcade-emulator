@@ -49,7 +49,8 @@ const DEFAULT_SETTINGS = {
   startFullscreen: false,
   hideTips: false,
   saveMissingOnStart: true,
-  autoUpdate: true
+  autoUpdate: true,
+  verbose: false
 };
 
 function getSettings() {
@@ -470,11 +471,13 @@ ipcMain.handle("game:ready", () => simReady(win && win.webContents));
 ipcMain.handle("game:markCached", (_e, id) => { updateGame(id, { cachedAt: new Date().toISOString() }); return true; });
 ipcMain.on("game:button", (_e, key, pressed) => setSimButton(key, pressed));
 ipcMain.on("app:quit", () => app.quit());
-// Settings -> Shut down this PC (the page asks for a second press first).
-ipcMain.handle("system:shutdown", () => new Promise(resolve => {
-  if (process.platform !== "win32") return resolve({ ok: false, error: "Shutting down is only supported on Windows." });
-  execFile("shutdown", ["/s", "/t", "0"], err => {
-    if (err) resolve({ ok: false, error: `Couldn't shut down: ${err.message.split("\n")[0]}` });
+// Settings -> Shut down / Restart this PC (the page asks for a second press first).
+ipcMain.handle("system:power", (_e, action) => new Promise(resolve => {
+  const flag = { shutdown: "/s", restart: "/r" }[action];
+  if (!flag) return resolve({ ok: false, error: "Unknown power action." });
+  if (process.platform !== "win32") return resolve({ ok: false, error: "This is only supported on Windows." });
+  execFile("shutdown", [flag, "/t", "0"], err => {
+    if (err) resolve({ ok: false, error: `Couldn't ${action === "restart" ? "restart" : "shut down"}: ${err.message.split("\n")[0]}` });
     else { resolve({ ok: true }); app.quit(); }
   });
 }));
