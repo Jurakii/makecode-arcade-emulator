@@ -187,6 +187,9 @@ h2 { font-size: 16px; margin: 28px 0 8px; }
   border: 1px solid var(--line);
   font-size: 13px;
 }
+/* A Remove or Shut down row waiting for its second press. */
+.setting-row.confirm { border-color: var(--err); }
+.setting-row.confirm .setting-value { background: var(--err); border-color: var(--err); color: #1a0404; font-weight: 600; }
 .setting-row[aria-pressed="true"] .setting-value { background: var(--ok); border-color: var(--ok); color: #0b1a05; font-weight: 600; }
 
 /* "Hide tips" removes every instruction line marked .tip. */

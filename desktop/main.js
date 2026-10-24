@@ -7,6 +7,7 @@
 const { app, BrowserWindow, ipcMain, session, webFrameMain, Menu, net, dialog } = require("electron");
 const fs = require("fs");
 const path = require("path");
+const { execFile } = require("child_process");
 const crypto = require("crypto");
 const { RequestCache } = require("./cache");
 const { readLocalProject, ProjectError } = require("./local-project");
@@ -469,6 +470,14 @@ ipcMain.handle("game:ready", () => simReady(win && win.webContents));
 ipcMain.handle("game:markCached", (_e, id) => { updateGame(id, { cachedAt: new Date().toISOString() }); return true; });
 ipcMain.on("game:button", (_e, key, pressed) => setSimButton(key, pressed));
 ipcMain.on("app:quit", () => app.quit());
+// Settings -> Shut down this PC (the page asks for a second press first).
+ipcMain.handle("system:shutdown", () => new Promise(resolve => {
+  if (process.platform !== "win32") return resolve({ ok: false, error: "Shutting down is only supported on Windows." });
+  execFile("shutdown", ["/s", "/t", "0"], err => {
+    if (err) resolve({ ok: false, error: `Couldn't shut down: ${err.message.split("\n")[0]}` });
+    else { resolve({ ok: true }); app.quit(); }
+  });
+}));
 
 app.whenReady().then(() => {
   dataDir = app.getPath("userData");

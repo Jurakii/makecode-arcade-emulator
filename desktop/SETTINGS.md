@@ -19,6 +19,7 @@ Two actions sit next to them:
 - **Check for updates now** calls the updater directly.
 - **Run Save For Offline** saves every game that isn't saved yet. It shows "N to save" on its row and "All saved" when there's nothing left to do.
 - **Controls** opens the existing controls screen.
+- **Games** lists every game with a **Remove** row, and **System** has **Shut down this PC** (Windows `shutdown /s /t 0`, via `system:shutdown` in `main.js`). Both need a second press: the row turns red and reads "Press again to …". Pressing any other row cancels it.
 
 ## Where the code lives
 

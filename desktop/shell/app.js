@@ -495,7 +495,7 @@
   }
 
   function closeSettings() {
-    pendingRemove = null;
+    pending = null;
     mode = "library";
     showView("library");
     renderLibrary();
@@ -521,7 +521,14 @@
     val.className = "setting-value";
     val.textContent = value;
     row.append(text, val);
-    row.addEventListener("click", onClick);
+    if (pending === key) row.classList.add("confirm");
+    row.addEventListener("click", () => {
+      // Pressing any other row cancels a confirmation that's waiting.
+      const cancelled = pending !== null && pending !== key;
+      if (cancelled) pending = null;
+      onClick();
+      if (cancelled && mode === "settings") renderSettings();
+    });
     return row;
   }
 
@@ -560,11 +567,17 @@
     list.textContent = "";
     $("settings-games-empty").hidden = games.length > 0;
     for (const g of games) {
-      const sure = pendingRemove === g.id;
-      list.append(settingRow("remove:" + g.id, g.title,
+      const key = "remove:" + g.id;
+      list.append(settingRow(key, g.title,
         g.kind === "local" ? `Local file: ${g.path.split(/[\\/]/).pop()}` : "From a MakeCode share link",
-        sure ? "Press again to remove" : "Remove", () => removeGame(g)));
+        pending === key ? "Press again to remove" : "Remove", () => removeGame(g)));
     }
+
+    const system = $("settings-system");
+    system.textContent = "";
+    system.append(settingRow("shutdown", "Shut down this PC",
+      "Closes Arcade Player and turns the computer off. Press twice to confirm.",
+      pending === "shutdown" ? "Press again to shut down" : "Shut down", shutDown));
 
     $("about").textContent = `Arcade Player v${info.version}. Your library and offline files are in ${info.dataDir}.`;
 
@@ -574,16 +587,28 @@
     }
   }
 
-  let pendingRemove = null; // id of the game whose Remove row is waiting for a second press
+  // Key of the row (a game's Remove, or Shut down) waiting for a second press to confirm.
+  let pending = null;
+
+  // First press arms the row and returns true; the second press clears it and returns false.
+  function needsConfirm(key) {
+    if (pending === key) { pending = null; return false; }
+    pending = key;
+    settingsMsg("");
+    renderSettings();
+    return true;
+  }
+
+  async function shutDown() {
+    if (needsConfirm("shutdown")) return;
+    renderSettings();
+    settingsMsg("Shutting down\u2026");
+    const res = await window.player.shutdown();
+    if (!res.ok) settingsMsg(res.error, true);
+  }
 
   async function removeGame(g) {
-    if (pendingRemove !== g.id) {
-      pendingRemove = g.id;
-      settingsMsg("");
-      renderSettings();
-      return;
-    }
-    pendingRemove = null;
+    if (needsConfirm("remove:" + g.id)) return;
     // Keep focus in the list: move to the next row (or the previous one at the end).
     const rows = Array.from(document.querySelectorAll("#settings-games .setting"));
     const at = rows.findIndex(r => r.dataset.key === "remove:" + g.id);

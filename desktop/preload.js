@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld("player", {
   markCached: id => ipcRenderer.invoke("game:markCached", id),
   setButton: (key, pressed) => ipcRenderer.send("game:button", key, pressed),
   quit: () => ipcRenderer.send("app:quit"),
+  shutdown: () => ipcRenderer.invoke("system:shutdown"),
 
   getSettings: () => ipcRenderer.invoke("settings:get"),
   setSettings: patch => ipcRenderer.invoke("settings:set", patch),
